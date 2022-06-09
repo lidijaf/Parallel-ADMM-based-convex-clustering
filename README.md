@@ -1,2 +1,2 @@
 # Parallel ADMM-based convex clustering
-A PyCOMPSs implementation of ADMM based SON clustering approach
+A PyCOMPSs implementation of ADMM based convex clustering approach
