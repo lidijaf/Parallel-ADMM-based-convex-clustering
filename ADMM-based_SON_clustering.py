@@ -20,7 +20,7 @@ from sklearn.metrics import davies_bouldin_score
 
 def admm_son(filename, folder, workers=5, num_iter=100, lmbd=1, rho=1, eps=0.1, abstol = 1e-4, reltol = 1e-2):
 
-    """ADMM kmeans represents an adapted kmeans implementation, based on the idea of SON (sum of norms) clustering, 
+    """ADMM-based convex clustering represents an adapted kmeans implementation, based on the idea of SON (sum of norms) clustering, 
     but solving the problem in a distributed manner. It relies on the Alternating Direction Method
     of Multipliers (ADMM) as the solver. ADMM is renowned for being well suited to the distributed
     settings, for its guaranteed convergence and general robustness with respect to the parameters. 
@@ -49,6 +49,7 @@ def admm_son(filename, folder, workers=5, num_iter=100, lmbd=1, rho=1, eps=0.1, 
     for i in range(num_iter):
       x[0] = update_x_zero(a[0], x[0], y, lmbd, workers)
       x[1:workers] = list(map(functools.partial(update_x, rho,  lmbd, d), a[1:workers], x[1:workers], y, lambdaVal))
+      x[1:workers] = compss_wait_on(x[1:workers])
       y_old=y
       y = y_update(lambdaVal, x, y, rho, workers-1, d)
       lambdaVal = lambda_update(lambdaVal, rho, x, y, workers-1)
@@ -71,6 +72,7 @@ def admm_son(filename, folder, workers=5, num_iter=100, lmbd=1, rho=1, eps=0.1, 
       xy[i]=np.concatenate((xy[i], [y[i-1]]), axis=0)
       chunk_sizes.append(chunk_size+1)
     possible_centers = list(map(functools.partial(merge_centers_locally, epsilon), xy, chunk_sizes, a, data_chunk_size))
+    possible_centers = compss_wait_on(possible_centers)
     pos_centers = functools.reduce(operator.iconcat, possible_centers, [])
     centers = merge_centers_globally(pos_centers, epsilon)
     centers = np.asarray(centers) 
@@ -228,43 +230,7 @@ def main():
     x, y, centers, allPossibleCenters, reqIters = admm_son(filename, folder, workers+1, num_iter=numiter, lmbd=lmbda, rho=1, eps=epsilon)
 
     print("\nTotal elapsed time: %s" % str((time.time() - start)))
-    print("\nRequired number of iterations: %s"% str(reqIters))
-    
-    #Metrics
-    
-    #Load the data set
-    A = load_data(folder+"/"+filename)
-    
-    #Define the labels    
-    labels = []
-    for i in range(A.shape[0]):
-      min_dist = 1e10
-      label = -1
-      for j in range(len(centers)):
-        dist = np.linalg.norm(A[i]-centers[j])
-        if dist<min_dist:
-          min_dist = dist
-          label = j
-      labels.append(label)
-
-    #calculate silhouette score
-    silScore=silhouette_score(A, labels)
-    print(silScore)
-    
-    #calculate dunn index
-    dist = pairwise_distances(A)
-    labels = np.asarray(labels)
-    dunn = validclust.indices.dunn(dist, labels)
-    print(dunn)
-    
-    #calculate davis boulin score
-    dbScore = davies_bouldin_score(A, labels)
-    print("Davis Boulin score:")
-    print(dbScore)
-
-    #recentring the centers
-    new_centers = recenter_the_centers(centers, A, labels)
-
+    print("\nRequired number of iterations: %s"% str(reqIters))  
 
 if __name__ == '__main__':
     main()
