@@ -19,7 +19,7 @@ from sklearn.metrics import pairwise_distances
 import validclust
 from sklearn.metrics import davies_bouldin_score
 
-def admm_kmeans(filename, folder, workers=5, num_iter=100, lmbd=1, rho=1, eps=0.1, abstol = 1e-4, reltol = 1e-2):
+def admm_conv_clust(filename, folder, workers=5, num_iter=100, lmbd=1, rho=1, eps=0.1, abstol = 1e-4, reltol = 1e-2):
 
     """ADMM kmeans represents an adapted kmeans implementation, based on the idea of SON (sum of norms) clustering, 
     but solving the problem in a distributed manner. It relies on the Alternating Direction Method
